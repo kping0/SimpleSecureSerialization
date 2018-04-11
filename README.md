@@ -5,8 +5,11 @@ Written in c.
 
 
 struct SSCS_data{ //Object returned by SSCS_object_data
-	void* data; //Data related to label
-	size_t len; //Length of data
+
+   void* data; //Data related to label
+
+size_t len; //Length of data
+
 }sscsd;
 
 void *SSCS_object(void); //Create SSCS object
