@@ -3,19 +3,27 @@
 #include <stdio.h> 
 #include <assert.h>
 #include <string.h> 
-#include "base64.h"
-#include "serialization.h"
-
+#include "base64.h" 
+#include "serialization.h" 
 /*
  * SimpleSecureChat Serialization Library. Made with Security in mind.
 */
 
-void *SSCS_object(){
+sscso *SSCS_object(){
 	sscso* obj = malloc(sizeof(struct SSCS_struct));		
 	obj->buf_ptr = NULL; obj->allocated = 0;
 	return obj;
 }
 
+sscso *SSCS_open(byte* buf){
+	size_t len = strlen((const char*)buf);
+	byte* buf_ptr = malloc(len);
+	memcpy(buf_ptr,buf,len);
+	sscso* obj = malloc(sizeof(struct SSCS_struct));
+	obj->buf_ptr = buf_ptr;
+	obj->allocated = len;
+	return obj;
+}
 int SSCS_object_add_data(sscso* obj,char* label,byte* data,size_t size){
 	if(size <= 0)return -1; //Size has to be bigger than 0
 	void *old_buf_ptr = obj->buf_ptr;
@@ -54,7 +62,7 @@ int SSCS_object_add_data(sscso* obj,char* label,byte* data,size_t size){
 	ibufwloc++;
 	free(b64data);	
 	size_t new_buf_size = (old_buf_size + final_intermediate_len);
-	void *new_buf_ptr = malloc(new_buf_size);
+	void *new_buf_ptr = malloc(new_buf_size+1);
 	memset(new_buf_ptr,0,new_buf_size);
 	if(old_buf_ptr != NULL)memcpy(new_buf_ptr,old_buf_ptr,old_buf_size);
 	free(old_buf_ptr);
@@ -66,6 +74,7 @@ int SSCS_object_add_data(sscso* obj,char* label,byte* data,size_t size){
 		base_ptr++;
 		i++;
 	}
+	*(byte*)(new_buf_ptr+new_buf_size) = '\0';
 	obj->allocated = new_buf_size;
 	obj->buf_ptr = new_buf_ptr;
 	free(intermediatebuf);
@@ -186,3 +195,4 @@ unsigned char* SSCS_object_string(sscso* obj,char* label){
 	return ret_ptr;
 	
 }
+

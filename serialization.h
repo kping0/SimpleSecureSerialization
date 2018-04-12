@@ -16,7 +16,9 @@ typedef struct SSCS_data sscsd; //SimpleSecureChatSerialized_Data
 
 typedef unsigned char byte;
 
-void *SSCS_object(void);
+sscso *SSCS_object(void);
+
+sscso *SSCS_open(byte* buf);
 
 int SSCS_object_add_data(sscso* obj,char* label,byte* data,size_t size);
 
@@ -43,3 +45,4 @@ double SSCS_object_double(sscso* obj,char* label);
 unsigned char* SSCS_object_string(sscso* obj,char* label);
 
 #endif /* SSCS_SERIALIZATION */
+
