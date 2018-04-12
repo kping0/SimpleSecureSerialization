@@ -1,5 +1,5 @@
 #include <errno.h>
-#include <stdlib.h>
+#include <stdlib.h> 
 #include <stdio.h> 
 #include <assert.h>
 #include <string.h> 
@@ -9,25 +9,7 @@
 /*
  * SimpleSecureChat Serialization Library. Made with Security in mind.
 */
-/*
-void debug_sscso(sscso* obj){
-	puts("Printing debug info on SSCS_struct");
-	printf("Pointer to buffer is 0x%x\n",(unsigned int)(obj->buf_ptr));
-	printf("buffer size is %d\n",(unsigned int)(obj->allocated));
-	if(obj->buf_ptr != NULL){
-		puts("Printing Buffer");
-		int i = 0;
-		while(i <= obj->allocated){
-			char* nextchar = obj->buf_ptr + i;
-			//printf("%c(0x%x)|",*nextchar,*nextchar);
-			printf("%c",*nextchar);
-			i++;
-		}
-		printf("\n End\n\n");
-	}
-	return ;	
-}
-*/
+
 void *SSCS_object(){
 	sscso* obj = malloc(sizeof(struct SSCS_struct));		
 	obj->buf_ptr = NULL; obj->allocated = 0;
@@ -35,10 +17,18 @@ void *SSCS_object(){
 }
 
 int SSCS_object_add_data(sscso* obj,char* label,byte* data,size_t size){
-	if(size <= 0)return 1; //Size has to be bigger than 0
+	if(size <= 0)return -1; //Size has to be bigger than 0
 	void *old_buf_ptr = obj->buf_ptr;
 	size_t old_buf_size = obj->allocated;	
 	size_t encoded_size;
+	if(old_buf_ptr != NULL){
+		byte* validationpointer = (byte*)strstr((const char*)old_buf_ptr,label);
+		if(validationpointer != NULL){
+			puts("Label Already Exists");	
+			return -1;
+		}
+	}
+
 	byte* b64data = base64_encode(data,size,&encoded_size);
 	int b64datalen = encoded_size;
 	int label_len = strlen((const char*)label);
@@ -84,14 +74,15 @@ int SSCS_object_add_data(sscso* obj,char* label,byte* data,size_t size){
 sscsd* SSCS_object_data(sscso* obj,char* label){
 	byte* buf_ptr = obj->buf_ptr;
 	size_t allocated = obj->allocated;
+	size_t label_len = strlen((const char*)label);
 	byte* readpointer = (byte*)strstr((const char*)buf_ptr,label);
 	if(readpointer == NULL){
 		puts("Label Not Found");
 		return NULL;
 	}
-	readpointer = (byte*)strstr((const char*)readpointer,":\"");	
-	if(readpointer == NULL){
-		puts("Invalid SSCS object");
+	readpointer+=label_len;
+	if(readpointer[0] != ':' || readpointer[1] != '"'){
+		puts("Label Error");
 		return NULL;
 	}
 	readpointer+=2;
@@ -105,7 +96,7 @@ sscsd* SSCS_object_data(sscso* obj,char* label){
 		i++;	
 	}
 	double b64encoded_len = i; 
-	byte* b64buffer = malloc(b64encoded_len); 
+	byte* b64buffer = malloc(b64encoded_len+1); 
 	i = 0;
 	/* Run loop again to read encoded string */
 	while(readpointer[i] != '"' && readpointer[i+1] != ';'){ //Get base64encoded data 
@@ -119,7 +110,7 @@ sscsd* SSCS_object_data(sscso* obj,char* label){
 	}
 	size_t len; 
 	sscsd* final = malloc(sizeof(sscsd));
-	final->data = base64_decode((const unsigned char*)b64buffer,b64encoded_len,&len);
+	final->data = base64_decode((const unsigned char*)b64buffer,b64encoded_len,&len); //NOTE THAT THIS IS A POINTER (if an integer was serialized an (int*) )
 	final->len = len;
 	free(b64buffer);
 	return final;
@@ -132,9 +123,11 @@ char* SSCS_object_encoded(sscso* obj){ //Get string to send over socket
 size_t SSCS_object_encoded_size(sscso* obj){ //Get size of string(often needs to be specified when sending over socket)
 	return obj->allocated;	
 } 
+
 byte* SSCS_data_get_data(sscsd* data){
 	return data->data;
 }
+
 size_t SSCS_data_get_size(sscsd* data){
 	return data->len;
 }
@@ -155,15 +148,41 @@ void SSCS_data_release(sscsd** data){ //Frees the data buffer AND the structure 
 	free(*data);
 	*data = NULL;	
 }
-
 /*
-int main(void){
-	sscso* obj = SSCS_object();
-	SSCS_object_add_data(obj,"label1",(byte*)"test",4);
-	sscsd* message = SSCS_object_data(obj,"label1");
-	if(message != NULL)fprintf(stdout,message->data,message->len);
-	SSCS_data_release(&message);
-	SSCS_release(&obj);
-	return 0;
-} 
+* Wrappers for SSCS_object_data() to simplify usage 
 */
+int SSCS_object_int(sscso* obj,char* label){
+	sscsd* data = SSCS_object_data(obj,label);
+	if(data == NULL)return -1;
+	if(data->len != sizeof(int)){
+		puts("Data stored with label is not an integer");
+		SSCS_data_release(&data);
+		return -1;
+	}
+	int retval = *(int*)(data->data);
+	SSCS_data_release(&data);
+	return retval;
+}
+double SSCS_object_double(sscso* obj,char* label){
+	sscsd* data = SSCS_object_data(obj,label);
+	if(data == NULL)return -1;
+	if(data->len != sizeof(double)){
+		puts("Data stored with label is not a double");
+		SSCS_data_release(&data);
+		return -1;
+	}	
+	double retval = *(int*)data->data;
+	SSCS_data_release(&data);
+	return retval;
+}
+unsigned char* SSCS_object_string(sscso* obj,char* label){
+	sscsd* data = SSCS_object_data(obj,label);
+	if(data == NULL)return NULL;
+	unsigned char* ret_ptr = malloc(data->len+2);
+	memcpy(ret_ptr,data->data,data->len);
+	*(ret_ptr+data->len + 1) = '\0';
+	SSCS_data_release(&data);
+	
+	return ret_ptr;
+	
+}
