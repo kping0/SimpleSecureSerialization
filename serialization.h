@@ -7,7 +7,7 @@ struct SSCS_struct{ //SSCS_object
 };
 
 struct SSCS_data{ //Object returned by SSCS_object_data
-	void* data; //Data related to label
+	void* data; //Data returned by function
 	size_t len; //Length of data
 };
 
@@ -36,6 +36,10 @@ void SSCS_release(sscso** obj);
 
 void SSCS_data_release(sscsd** data);
 
+int SSCS_object_int(sscso* obj,char* label);
+
+double SSCS_object_double(sscso* obj,char* label);
+
+unsigned char* SSCS_object_string(sscso* obj,char* label);
 
 #endif /* SSCS_SERIALIZATION */
-
